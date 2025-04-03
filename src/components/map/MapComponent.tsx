@@ -2,12 +2,32 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapPin, Navigation, Search } from "lucide-react";
+import { MapPin, Navigation, Search, Map as MapIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-// Mock: In a real app, we'd use actual MapBox or Google Maps
+// Extended mock locations to include Indian cities
+const mockLocations = [
+  { address: "Mumbai, Maharashtra, India", lat: 19.076, lng: 72.8777 },
+  { address: "Delhi, India", lat: 28.7041, lng: 77.1025 },
+  { address: "Bangalore, Karnataka, India", lat: 12.9716, lng: 77.5946 },
+  { address: "Chennai, Tamil Nadu, India", lat: 13.0827, lng: 80.2707 },
+  { address: "Kolkata, West Bengal, India", lat: 22.5726, lng: 88.3639 },
+  { address: "Hyderabad, Telangana, India", lat: 17.385, lng: 78.4867 },
+  { address: "Pune, Maharashtra, India", lat: 18.5204, lng: 73.8567 },
+  { address: "Jaipur, Rajasthan, India", lat: 26.9124, lng: 75.7873 },
+  // Global cities for international travel
+  { address: "Central Park, New York", lat: 40.785091, lng: -73.968285 },
+  { address: "Brooklyn Bridge, New York", lat: 40.7061, lng: -73.9969 },
+  { address: "Times Square, New York", lat: 40.7580, lng: -73.9855 },
+  { address: "Grand Central Terminal, New York", lat: 40.7527, lng: -73.9772 },
+  { address: "London, United Kingdom", lat: 51.5074, lng: -0.1278 },
+  { address: "Paris, France", lat: 48.8566, lng: 2.3522 },
+  { address: "Tokyo, Japan", lat: 35.6762, lng: 139.6503 },
+  { address: "Sydney, Australia", lat: -33.8688, lng: 151.2093 },
+];
+
 const MapComponent: React.FC<{
   onSourceSelect?: (location: { lat: number; lng: number; address: string }) => void;
   onDestinationSelect?: (location: { lat: number; lng: number; address: string }) => void;
@@ -17,15 +37,10 @@ const MapComponent: React.FC<{
   const [sourceQuery, setSourceQuery] = useState("");
   const [destinationQuery, setDestinationQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [suggestions, setSuggestions] = useState<Array<{ lat: number; lng: number; address: string }>>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeInput, setActiveInput] = useState<"source" | "destination" | null>(null);
   const isMobile = useIsMobile();
-
-  // Mock locations for demo
-  const mockLocations = [
-    { address: "Central Park, New York", lat: 40.785091, lng: -73.968285 },
-    { address: "Brooklyn Bridge, New York", lat: 40.7061, lng: -73.9969 },
-    { address: "Times Square, New York", lat: 40.7580, lng: -73.9855 },
-    { address: "Grand Central Terminal, New York", lat: 40.7527, lng: -73.9772 },
-  ];
 
   useEffect(() => {
     // In a real app, initialize map here
@@ -39,9 +54,9 @@ const MapComponent: React.FC<{
         <div class="w-full h-full flex items-center justify-center text-muted-foreground flex-col">
           <div class="flex flex-col items-center mb-4">
             <MapPin className="h-12 w-12 mb-2 text-eco" />
-            <p>Map would render here with actual MapBox/Google Maps integration</p>
+            <p>Map showing global locations with India as focus</p>
           </div>
-          <div class="text-sm">Example map showing route between selected locations</div>
+          <div class="text-sm">Select any location worldwide for your ride</div>
         </div>
       `;
     }, 500);
@@ -53,49 +68,102 @@ const MapComponent: React.FC<{
 
   const handleSearch = (type: "source" | "destination") => {
     setIsSearching(true);
+    setShowSuggestions(false);
     
-    // Mock API call to get location suggestions
-    setTimeout(() => {
+    const query = type === "source" ? sourceQuery : destinationQuery;
+    
+    if (!query.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Empty search",
+        description: "Please enter a location to search",
+      });
       setIsSearching(false);
-      
-      const query = type === "source" ? sourceQuery : destinationQuery;
-      
-      if (!query.trim()) {
+      return;
+    }
+    
+    // Find matching location from our mock data
+    const foundLocation = mockLocations.find(loc => 
+      loc.address.toLowerCase() === query.toLowerCase()
+    );
+    
+    if (foundLocation) {
+      if (type === "source" && onSourceSelect) {
+        onSourceSelect(foundLocation);
         toast({
-          variant: "destructive",
-          title: "Empty search",
-          description: "Please enter a location to search",
+          title: "Source location set",
+          description: `Selected ${foundLocation.address}`,
         });
-        return;
+      } else if (type === "destination" && onDestinationSelect) {
+        onDestinationSelect(foundLocation);
+        toast({
+          title: "Destination location set",
+          description: `Selected ${foundLocation.address}`,
+        });
       }
-      
-      // Find matching location from our mock data
-      const foundLocation = mockLocations.find(loc => 
+    } else {
+      // Filter matching locations
+      const filteredLocations = mockLocations.filter(loc =>
         loc.address.toLowerCase().includes(query.toLowerCase())
       );
       
-      if (foundLocation) {
-        if (type === "source" && onSourceSelect) {
-          onSourceSelect(foundLocation);
-          toast({
-            title: "Source location set",
-            description: `Selected ${foundLocation.address}`,
-          });
-        } else if (type === "destination" && onDestinationSelect) {
-          onDestinationSelect(foundLocation);
-          toast({
-            title: "Destination location set",
-            description: `Selected ${foundLocation.address}`,
-          });
+      if (filteredLocations.length > 0) {
+        if (filteredLocations.length === 1) {
+          // If only one match, select it directly
+          const location = filteredLocations[0];
+          if (type === "source" && onSourceSelect) {
+            onSourceSelect(location);
+            setSourceQuery(location.address);
+            toast({
+              title: "Source location set",
+              description: `Selected ${location.address}`,
+            });
+          } else if (type === "destination" && onDestinationSelect) {
+            onDestinationSelect(location);
+            setDestinationQuery(location.address);
+            toast({
+              title: "Destination location set",
+              description: `Selected ${location.address}`,
+            });
+          }
+        } else {
+          // If multiple matches, show suggestions
+          setSuggestions(filteredLocations);
+          setShowSuggestions(true);
+          setActiveInput(type);
         }
       } else {
         toast({
           variant: "destructive",
           title: "Location not found",
-          description: "Try something like 'Central Park' or 'Times Square'",
+          description: "Try searching for a major city or landmark",
         });
       }
-    }, 800);
+    }
+    
+    setIsSearching(false);
+  };
+
+  const handleSuggestionSelect = (location: { lat: number; lng: number; address: string }) => {
+    if (activeInput === "source") {
+      setSourceQuery(location.address);
+      if (onSourceSelect) {
+        onSourceSelect(location);
+      }
+    } else if (activeInput === "destination") {
+      setDestinationQuery(location.address);
+      if (onDestinationSelect) {
+        onDestinationSelect(location);
+      }
+    }
+    
+    setShowSuggestions(false);
+    setActiveInput(null);
+    
+    toast({
+      title: `${activeInput === "source" ? "Source" : "Destination"} location set`,
+      description: `Selected ${location.address}`,
+    });
   };
 
   return (
@@ -111,12 +179,38 @@ const MapComponent: React.FC<{
               <MapPin size={16} className="text-eco" />
               Starting Point
             </h3>
-            <div className="flex">
+            <div className="flex relative">
               <Input
                 placeholder="Enter starting location"
                 value={sourceQuery}
-                onChange={(e) => setSourceQuery(e.target.value)}
+                onChange={(e) => {
+                  setSourceQuery(e.target.value);
+                  if (e.target.value.length > 2) {
+                    const filteredLocations = mockLocations.filter(loc =>
+                      loc.address.toLowerCase().includes(e.target.value.toLowerCase())
+                    );
+                    setSuggestions(filteredLocations);
+                    setShowSuggestions(filteredLocations.length > 0);
+                    setActiveInput("source");
+                  } else {
+                    setShowSuggestions(false);
+                  }
+                }}
                 className="rounded-r-none"
+                onFocus={() => {
+                  if (sourceQuery.length > 2) {
+                    const filteredLocations = mockLocations.filter(loc =>
+                      loc.address.toLowerCase().includes(sourceQuery.toLowerCase())
+                    );
+                    setSuggestions(filteredLocations);
+                    setShowSuggestions(filteredLocations.length > 0);
+                    setActiveInput("source");
+                  }
+                }}
+                onBlur={() => {
+                  // Delay hiding suggestions to allow clicking on them
+                  setTimeout(() => setShowSuggestions(false), 200);
+                }}
               />
               <Button 
                 variant="outline"
@@ -127,6 +221,19 @@ const MapComponent: React.FC<{
               >
                 <Search size={16} />
               </Button>
+              {showSuggestions && activeInput === "source" && suggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 bg-white border border-border rounded-md mt-1 shadow-md z-50 max-h-48 overflow-y-auto">
+                  {suggestions.map((location, index) => (
+                    <div 
+                      key={`source-${index}`}
+                      className="p-2 hover:bg-accent cursor-pointer"
+                      onClick={() => handleSuggestionSelect(location)}
+                    >
+                      {location.address}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           
@@ -135,12 +242,38 @@ const MapComponent: React.FC<{
               <Navigation size={16} className="text-eco" />
               Destination
             </h3>
-            <div className="flex">
+            <div className="flex relative">
               <Input
                 placeholder="Enter destination"
                 value={destinationQuery}
-                onChange={(e) => setDestinationQuery(e.target.value)}
+                onChange={(e) => {
+                  setDestinationQuery(e.target.value);
+                  if (e.target.value.length > 2) {
+                    const filteredLocations = mockLocations.filter(loc =>
+                      loc.address.toLowerCase().includes(e.target.value.toLowerCase())
+                    );
+                    setSuggestions(filteredLocations);
+                    setShowSuggestions(filteredLocations.length > 0);
+                    setActiveInput("destination");
+                  } else {
+                    setShowSuggestions(false);
+                  }
+                }}
                 className="rounded-r-none"
+                onFocus={() => {
+                  if (destinationQuery.length > 2) {
+                    const filteredLocations = mockLocations.filter(loc =>
+                      loc.address.toLowerCase().includes(destinationQuery.toLowerCase())
+                    );
+                    setSuggestions(filteredLocations);
+                    setShowSuggestions(filteredLocations.length > 0);
+                    setActiveInput("destination");
+                  }
+                }}
+                onBlur={() => {
+                  // Delay hiding suggestions to allow clicking on them
+                  setTimeout(() => setShowSuggestions(false), 200);
+                }}
               />
               <Button 
                 variant="outline"
@@ -151,6 +284,19 @@ const MapComponent: React.FC<{
               >
                 <Search size={16} />
               </Button>
+              {showSuggestions && activeInput === "destination" && suggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 bg-white border border-border rounded-md mt-1 shadow-md z-50 max-h-48 overflow-y-auto">
+                  {suggestions.map((location, index) => (
+                    <div 
+                      key={`destination-${index}`}
+                      className="p-2 hover:bg-accent cursor-pointer"
+                      onClick={() => handleSuggestionSelect(location)}
+                    >
+                      {location.address}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           
@@ -170,8 +316,8 @@ const MapComponent: React.FC<{
                 }
               }}
             >
-              <Navigation size={16} />
-              <span>Set Route</span>
+              <MapIcon size={16} />
+              <span>Find Route</span>
             </Button>
           </div>
         </CardContent>

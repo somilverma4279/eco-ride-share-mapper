@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import MapComponent from "@/components/map/MapComponent";
-import { Calendar, Car, Clock, DollarSign, UserPlus } from "lucide-react";
+import { Calendar, Car, Clock, IndianRupee, UserPlus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/components/ui/use-toast";
 import { Slider } from "@/components/ui/slider";
@@ -19,7 +19,7 @@ const OfferRide = () => {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [seats, setSeats] = useState(2);
-  const [price, setPrice] = useState(10);
+  const [price, setPrice] = useState(500);  // Default price in INR
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,23 +162,23 @@ const OfferRide = () => {
                 <div>
                   <div className="flex justify-between">
                     <Label htmlFor="price" className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" />
-                      Price per Seat
+                      <IndianRupee className="h-4 w-4" />
+                      Price per Seat (₹)
                     </Label>
-                    <span className="text-sm font-medium">${price}</span>
+                    <span className="text-sm font-medium">₹{price}</span>
                   </div>
                   <Slider
                     id="price"
                     min={0}
-                    max={50}
-                    step={1}
+                    max={2000}
+                    step={50}
                     value={[price]}
                     onValueChange={(values) => setPrice(values[0])}
                     className="mt-2"
                   />
                   <div className="flex justify-between pt-1">
-                    <span className="text-xs text-muted-foreground">$0</span>
-                    <span className="text-xs text-muted-foreground">$50</span>
+                    <span className="text-xs text-muted-foreground">₹0</span>
+                    <span className="text-xs text-muted-foreground">₹2000</span>
                   </div>
                 </div>
               </div>
